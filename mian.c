@@ -3,21 +3,45 @@
 #include <string.h>
 #include <pthread.h>
 
-typedef char ALIGN[16];
+#define HEAP_SIZE 1024 * 1024 * 1024 // 1GB
+static char heap[HEAP_SIZE];
+static void *heap_end = heap;
+
+void *sbrk(intptr_t increment){
+    //static void *heap_start = heap;
+    void *prev_heap_end = heap_end;
+
+    if((char *) heap_end + increment > heap + HEAP_SIZE || (char *) heap_end + increment < heap){
+        return (void *) -1;
+    }
+
+    heap_end = (char *) heap_end + increment;
+    return prev_heap_end;
+}
+
+struct block_meta {
+    size_t size;
+    unsigned is_free;
+    struct header_t *next;
+};
+
+typedef  char ALIGN[16];
 
 union header {
     struct {
-        size_t size;        // Size of the block
-        unsigned is_free;   // Block status flag
-        union header *next; // Next block in list
+        size_t size;
+        unsigned is_free;
+        union header *next;
     } s;
-    ALIGN stub;            // Force 16-byte alignment
 };
+
 typedef union header header_t;
 
 // Global variables
 header_t *head = NULL, *tail = NULL;
 pthread_mutex_t global_malloc_lock;
+
+header_t *get_free_block(size_t size);
 
 //implementing malloc
 void *malloc(size_t size) {
@@ -159,12 +183,42 @@ header_t *get_free_block(size_t size) {
 
 //main function
 int main() {
-    pthread_mutex_init(&global_malloc_lock, NULL); // initialize mutex in main function
+    printf("testing malloc\n");
+    printf("malloc: \n");
+    int *p = (int *)malloc(10 * sizeof(int));
+    if(p){
+        for (int i = 0; i < 10; i++) {
+            p[i] = i + 1;
+        }
+    }
+    for(int i = 0; i < 10; i++){
+        printf("%d\n", p[i]);
+    }
+  
+    //calloc
+    int *q = (int *)calloc(10, sizeof(int));
+    if(q){
+        printf("calloc: \n");
+        for(int i = 0; i < 10; i++){
+            printf("%d\n", q[i]);
+        }
+    }
 
-    int *p = (int*)malloc(sizeof(int));
-    *p = 10;
-    printf("%d\n", *p);
 
-    pthread_mutex_destroy(&global_malloc_lock); // destroy mutex before exiting
-    return 0;
+    //reealloc
+    q = (int *)realloc(q, 20 * sizeof(int));
+    if (q)
+    {
+        for(int i = 0; i < 20; i++){
+            printf("%d\n", q[i]);
+        }
+        printf("realloc: \n");
+        for(int i = 10; i < 20; i++){
+            q[i] = i + 1;
+        }
+
+    }
+    free(q);
+    printf("free: \n");
+    return 0;    
 }
