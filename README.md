@@ -1,2 +1,2 @@
 compilar con:
-gcc -o mAlloc mAlloc.c -lpthread -Wall -Wextra
+gcc -o mian mian.c -lpthread -Wall -Wextra
